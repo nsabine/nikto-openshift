@@ -1,0 +1,16 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: nikto
+spec:
+  parallelism: 1    
+  completions: 1    
+  template:         
+    metadata:
+      name: nikto
+    spec:
+      containers:
+      - name: nikto
+        image: nikto
+        command: ["nikto",  "-h", "127.0.0.1"]
+      restartPolicy: OnFailure    
