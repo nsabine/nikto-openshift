@@ -1,0 +1,124 @@
+apiVersion: v1
+kind: Template
+metadata:
+  name: nikto-openshift
+  annotations:
+    openshift.io/display-name: "Nikto2" 
+    description: >-
+      Nikto is an Open Source (GPL) web server scanner which performs 
+      comprehensive tests against web servers for multiple items, including 
+      over 6700 potentially dangerous files/programs, checks for outdated 
+      versions of over 1250 servers, and version specific problems on over 
+      270 servers. It also checks for server configuration items such as the 
+      presence of multiple index files, HTTP server options, and will attempt 
+      to identify installed web servers and software. Scan items and plugins 
+      are frequently updated and can be automatically updated.
+    openshift.io/long-description: >-
+      This template defines resources needed to deploy Nikto from GitHub 
+      (https://github.com/sullo/nikto/archive/master.zip), including a 
+      build configuration, batch job definition, and parameters for execution. 
+    iconClass: fa fa-eye
+objects:
+- apiVersion: v1
+  kind: BuildConfig
+  metadata:
+    labels:
+      app: nikto-openshift
+    name: nikto-openshift
+  spec:
+    output:
+      to:
+        kind: ImageStreamTag
+        name: nikto-openshift:latest
+    runPolicy: Serial
+    source:
+      git:
+        uri: "${SOURCE_REPOSITORY_URL}"
+      type: Git
+    strategy:
+      dockerStrategy:
+        from:
+          kind: ImageStreamTag
+          name: centos:latest
+      type: Docker
+    triggers:
+    - type: ConfigChange
+    - imageChange: {}
+      type: ImageChange
+- apiVersion: v1
+  kind: ImageStream
+  metadata:
+    labels:
+      app: nikto-openshift
+    name: centos
+  spec:
+    lookupPolicy:
+      local: false
+    tags:
+    - annotations:
+        openshift.io/imported-from: centos:latest
+      from:
+        kind: DockerImage
+        name: centos:latest
+      importPolicy: {}
+      name: latest
+      referencePolicy:
+        type: Source
+- apiVersion: v1
+  kind: ImageStream
+  metadata:
+    labels:
+      app: nikto-openshift
+    name: nikto-openshift
+  spec:
+    lookupPolicy:
+      local: false
+    tags:
+    - annotations: null
+      from:
+        kind: DockerImage
+        name: docker-registry.default.svc:5000/nikto/nikto-openshift:latest
+      importPolicy: {}
+      name: latest
+- apiVersion: batch/v1
+  kind: Job
+  metadata:
+    labels:
+      job-name: nikto
+    name: nikto
+  spec:
+    completions: 1
+    parallelism: 1
+    selector:
+    template:
+      metadata:
+        labels:
+          job-name: nikto
+        name: nikto
+      spec:
+        nodeSelector:
+          zone: "${ZONE}"
+        containers:
+        - command:
+          - nikto
+          - -h
+          - "${TARGET_HOST}"
+          image: docker-registry.default.svc:5000/nikto/nikto-openshift:latest
+          imagePullPolicy: Always
+          name: nikto-openshift
+          resources: {}
+        restartPolicy: OnFailure
+parameters:
+  - name: SOURCE_REPOSITORY_URL 
+    displayName: Source Repository URL 
+    description: The URL of the repository with your application source code 
+    value: https://github.com/nsabine/nikto-openshift.git 
+    required: true 
+  - name: TARGET_HOST
+    description: Target host to scan
+    value: http://52.23.234.146/
+    required: true 
+  - name: ZONE
+    description: Deployment Zone (vrtx or us-east)
+    value: vrtx
+    required: true 

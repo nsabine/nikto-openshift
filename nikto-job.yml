@@ -10,7 +10,19 @@ spec:
       name: nikto
     spec:
       containers:
-      - name: nikto
-        image: nikto
+      - name: nikto-openshift
+        image: docker-registry.default.svc:5000/nikto/nikto-openshift@sha256:436cfda21dd7b0556700ac4bde674e2c66bcbba9077dd67a229fe8c806311409
         command: ["nikto",  "-h", "127.0.0.1"]
       restartPolicy: OnFailure    
+  triggers:
+  - type: ConfigChange
+  - imageChangeParams:
+      automatic: true
+      containerNames:
+      - nikto-openshift
+      from:
+        kind: ImageStreamTag
+        name: nikto-openshift:latest
+        namespace: nikto
+    type: ImageChange
+
